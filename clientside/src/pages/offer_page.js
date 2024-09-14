@@ -96,7 +96,7 @@ const OfferPage = ({
       }
 
       if (offerIds.length > 0) {
-        // Navigate to the view offer page with the listingId and the first offerId (or any other logic you prefer)
+        setLoading(true);
         router.push(
           `/view_offer?listingId=${listingId}&offerId=${offerIds[0]}`
         );
