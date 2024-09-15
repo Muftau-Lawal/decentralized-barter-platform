@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 350 200">
+  <defs>
+    <linearGradient id="circleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4CAF50;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2196F3;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="textGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f0f0f0;stop-opacity:1" />
+    </linearGradient>
+    <style type="text/css">
+      
+      @media (min-width: 760px) {
+        #logo-text { display: none; }
+      }
+
+      #logo-text text {
+        cursor: pointer;
+      }
+    </style>
+  </defs>
+  
+  <g id="logo-circle" transform="translate(, 0)">
+    <circle cx="100" cy="100" r="98" fill="url(#circleGrad)" stroke="white" stroke-width="4"/>
+    <path d="M65,100 A35,35 0 1,1 135,100 M135,100 A35,35 0 1,1 65,100" 
+          fill="none" stroke="white" stroke-width="8" stroke-linecap="round"/>
+    <circle cx="65" cy="100" r="15" fill="white"/>
+    <circle cx="135" cy="100" r="15" fill="white"/>
+  </g>
+  
+  <g id="logo-text" transform="translate(280, 100)">
+    <text x="0" y="-2" font-family="Arial, sans-serif" font-size="48" font-weight="bold" text-anchor="middle" fill="url(#textGrad)">
+      Barter
+    </text>
+    <text x="0" y="40" font-family="Arial, sans-serif" font-size="32" font-weight="bold" text-anchor="middle" fill="url(#textGrad)">
+      Easy
+    </text>
+  </g>
+</svg>
