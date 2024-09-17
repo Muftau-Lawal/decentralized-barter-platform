@@ -200,12 +200,12 @@ const ViewOffer = () => {
       await acceptBarterOffer(listingId, offerId);
 
       // Remove the accepted offer from the offerNFTs array
-      const updatedOfferNFTs = offerNFTs.filter((_, i) => i !== index);
-      setOfferNFTs(updatedOfferNFTs); // Update state to trigger re-render
+      // const updatedOfferNFTs = offerNFTs.filter((_, i) => i !== index);
+      // setOfferNFTs(updatedOfferNFTs); // Update state to trigger re-render
 
       // Optionally, redirect or show a success message
-      console.log("Barter offer accepted successfully");
-      router.push(`/author?tab=owned&walletAddress=${currentAccount.address}`);
+      // console.log("Barter offer accepted successfully");
+      // router.push(`/author?tab=owned&walletAddress=${currentAccount.address}`);
     } catch (error) {
       console.error("Error accepting barter offer:", error);
     }
