@@ -42,6 +42,7 @@ const ViewOffer = () => {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [countdowns, setCountdowns] = useState({});
+  const [parsedOfferId, setParsedOfferId] = useState(null);
   const [isWalletConnected, setIsWalletConnected] = useState(false);
   const router = useRouter();
 
@@ -63,12 +64,12 @@ const ViewOffer = () => {
 
   // Fetching the NFTs when the component mounts
   useEffect(() => {
-    // Wait until the wallet is connected
     if (!router.isReady || !isWalletConnected) return;
 
     const { listingId, offerId } = router.query;
     const parsedListingId = parseInt(listingId);
     const parsedOfferId = offerId ? parseInt(offerId) : null;
+    setParsedOfferId(parsedOfferId)
 
     if (isNaN(parsedListingId) || (offerId && isNaN(parsedOfferId))) {
       setError("Invalid listingId or offerId");
@@ -200,12 +201,12 @@ const ViewOffer = () => {
       await acceptBarterOffer(listingId, offerId);
 
       // Remove the accepted offer from the offerNFTs array
-      const updatedOfferNFTs = offerNFTs.filter((_, i) => i !== index);
-      setOfferNFTs(updatedOfferNFTs); // Update state to trigger re-render
+      // const updatedOfferNFTs = offerNFTs.filter((_, i) => i !== index);
+      // setOfferNFTs(updatedOfferNFTs); // Update state to trigger re-render
 
       // Optionally, redirect or show a success message
-      console.log("Barter offer accepted successfully");
-      router.push(`/author?tab=owned&walletAddress=${currentAccount.address}`);
+      // console.log("Barter offer accepted successfully");
+      // router.push(`/author?tab=owned&walletAddress=${currentAccount.address}`);
     } catch (error) {
       console.error("Error accepting barter offer:", error);
     }
@@ -359,14 +360,15 @@ const ViewOffer = () => {
                         <div className={`${Style.nft_side} swiper-slide`}>
                           <h3>
                             {currentAccount?.address?.toLowerCase() ===
-                              offererAddress?.toLowerCase()
+                            offererAddress?.toLowerCase()
                               ? "My Pending Offer"
-                              : `Offer #${index + 1}/${offerNFTs.filter(
-                                (offerNFT) =>
-                                  Number(offerNFT.offerExpire) >
-                                  Date.now() / 1000
-                              ).length
-                              }`}
+                              : `Offer #${index + 1}/${
+                                  offerNFTs.filter(
+                                    (offerNFT) =>
+                                      Number(offerNFT.offerExpire) >
+                                      Date.now() / 1000
+                                  ).length
+                                }`}
                           </h3>
                           <Image
                             src={offerNFT.image || "/placeholder.png"}
@@ -376,14 +378,16 @@ const ViewOffer = () => {
                             style={{ objectFit: "contain" }}
                           />
                           <p>{offerNFT.name || "Unnamed NFT"}</p>
-                          <p>Offerer: {offerer ? offerer.userName : "Unknown"}</p>
+                          <p>
+                            Offerer: {offerer ? offerer.userName : "Unknown"}
+                          </p>
                           <p>Address: {shortenedAddress}</p>
                           <p>Offer Lock Till: {expirationTime}</p>
                           <p>Time Left: {countdown}</p>
 
                           {/* Show buttons aligned in a row for the listing owner */}
                           {currentAccount?.address?.toLowerCase() ===
-                            listingNFT.itemOwner?.toLowerCase() ? (
+                          listingNFT.itemOwner?.toLowerCase() ? (
                             <div
                               style={{
                                 display: "flex",
@@ -434,6 +438,8 @@ const ViewOffer = () => {
                                 display: "flex",
                                 gap: "10px",
                                 marginTop: "10px",
+                                justifyContent: "center",
+                                alignItems: "center",
                               }}
                             >
                               <Button
@@ -448,7 +454,7 @@ const ViewOffer = () => {
                                 handleClick={() =>
                                   handleDeclineBarterOffer(
                                     Number(listingNFT.tokenId),
-                                    Number(offerNFT.offerId),
+                                    parsedOfferId,
                                     index
                                   )
                                 }
@@ -456,7 +462,7 @@ const ViewOffer = () => {
                               />
                               <Button
                                 icon={<MdArrowBack />}
-                                btnName="Go Back"
+                                btnName="Back to my Items"
                                 handleClick={() => {
                                   router.push(
                                     `/author?tab=owned&walletAddress=${currentAccount.address}`
