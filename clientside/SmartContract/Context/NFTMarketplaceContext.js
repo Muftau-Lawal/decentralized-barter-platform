@@ -760,182 +760,213 @@ const fetchNFTByOfferId = async (offerId) => {
 };
 
 
-const getBarterOffers = async (listingId) => {
-  try {
-    const contract = await connectSmartContract();
+  const getBarterOffers = async (listingId) => {
+    try {
+      const contract = await connectSmartContract();
 
-    // Fetch all offers for a given listing ID from the smart contract
-    const offersProxy = await contract.getBarterOffers(listingId);
-    console.log(`Fetched Offers for Listing ID ${listingId}:`, offersProxy);
+      // Fetch all offers for a given listing ID from the smart contract
+      const offersProxy = await contract.getBarterOffers(listingId);
+      console.log(`Fetched Offers for Listing ID ${listingId}:`, offersProxy);
 
-    // Convert Proxy object to an array of offers
-    const offers = Object.values(offersProxy).map((offerProxy) => ({
-      offeredTokenId: offerProxy[0],
-      offerTransactionId: offerProxy[1],
-      offerer: offerProxy[2],
-      isAccepted: offerProxy[3],
-      tokenURI: offerProxy[4],
-      offerExpire: offerProxy[5],
-      expirationTime: offerProxy[6],
-    }));
+      // Convert Proxy object to an array of offers
+      const offers = Object.values(offersProxy).map((offerProxy) => ({
+        offeredTokenId: offerProxy[0],
+        offerTransactionId: offerProxy[1],
+        offerer: offerProxy[2],
+        isAccepted: offerProxy[3],
+        tokenURI: offerProxy[4],
+        offerExpire: offerProxy[5],
+        expirationTime: offerProxy[6],
+      }));
 
-    console.log(`Parsed Offers for Listing ID ${listingId}:`, offers);
+      console.log(`Parsed Offers for Listing ID ${listingId}:`, offers);
 
-    if (!Array.isArray(offers) || offers.length === 0) {
-      console.warn(
-        `No offers found or invalid format for Listing ID ${listingId}`
+      if (!Array.isArray(offers) || offers.length === 0) {
+        console.warn(
+          `No offers found or invalid format for Listing ID ${listingId}`
+        );
+        return [];
+      }
+
+      const items = await Promise.all(
+        offers.map(async (offer, index) => {
+          try {
+            console.log(`Processing offer ${index + 1} of ${offers.length}`);
+
+            // Convert BigInt values to numbers safely
+            const offeredTokenIdNumber =
+              typeof offer.offeredTokenId === "bigint"
+                ? Number(offer.offeredTokenId)
+                : offer.offeredTokenId;
+            const offerId =
+              typeof offer.offerTransactionId === "bigint"
+                ? Number(offer.offerTransactionId)
+                : offer.offerTransactionId;
+            const expirationTimeNumber =
+              typeof offer.expirationTime === "bigint"
+                ? Number(offer.expirationTime)
+                : offer.expirationTime;
+
+            // Check if any data is undefined or null
+            if (!offeredTokenIdNumber || !offer.offerer) {
+              console.warn(
+                `Offer data is incomplete for index ${index + 1}:`,
+                offer
+              );
+              return null; // Skip this offer if any required data is missing
+            }
+
+            // Convert expiration time to a human-readable format
+            const expirationDateTime = expirationTimeNumber
+              ? new Date(expirationTimeNumber * 1000).toLocaleString()
+              : "Invalid Date";
+
+            // Fetch metadata from the token URI
+            const meta = await axios.get(offer.tokenURI);
+            console.log(
+              `Metadata for offer token ${offeredTokenIdNumber}:`,
+              meta.data
+            );
+
+            // Fetch creator ID from the account mapping
+            const creatorId =
+              accountsMappingRef.current[offer.offerer.toLowerCase()] || 0;
+
+            // Generate random likes for the offer (or use actual data if available)
+            const randomLikes = Math.floor(Math.random() * 501);
+
+            // Construct the offer item object
+            const item = {
+              tokenId: offeredTokenIdNumber,
+              offerId: offerId,
+              offerer: offer.offerer,
+              itemOwner: offer.offerer,
+              creatorId: creatorId,
+              isAccepted: offer.isAccepted,
+              name: meta.data.name,
+              description: meta.data.description,
+              image: meta.data.image,
+              category: meta.data.category,
+              swapCategory: meta.data.swapCategories,
+              likes: randomLikes,
+              offerExpire: expirationTimeNumber,
+              offerExpireDateTime: expirationDateTime,
+            };
+
+            console.log("Processed offer item:", item);
+            return item;
+          } catch (innerError) {
+            console.error(`Error processing offer ${index + 1}:`, innerError);
+            return null; // Continue processing other offers even if one fails
+          }
+        })
       );
+
+      // Filter out any null items resulting from processing errors
+      const validItems = items.filter((item) => item !== null);
+      console.log("Total valid offers processed:", validItems.length);
+      return validItems;
+    } catch (error) {
+      console.error("Error fetching barter offers:", error);
+      setOpenError(true);
+      setError("Error fetching barter offers!!!");
       return [];
     }
+  };
 
-    const items = await Promise.all(
-      offers.map(async (offer, index) => {
-        try {
-          console.log(`Processing offer ${index + 1} of ${offers.length}`);
 
-          // Convert BigInt values to numbers safely
-          const offeredTokenIdNumber =
-            typeof offer.offeredTokenId === "bigint"
-              ? Number(offer.offeredTokenId)
-              : offer.offeredTokenId;
-          const offerId =
-            typeof offer.offerTransactionId === "bigint"
-              ? Number(offer.offerTransactionId)
-              : offer.offerTransactionId;
-          const expirationTimeNumber =
-            typeof offer.expirationTime === "bigint"
-              ? Number(offer.expirationTime)
-              : offer.expirationTime;
-
-          // Check if any data is undefined or null
-          if (!offeredTokenIdNumber || !offer.offerer) {
-            console.warn(
-              `Offer data is incomplete for index ${index + 1}:`,
-              offer
-            );
-            return null; // Skip this offer if any required data is missing
-          }
-
-          // Convert expiration time to a human-readable format
-          const expirationDateTime = expirationTimeNumber
-            ? new Date(expirationTimeNumber * 1000).toLocaleString()
-            : "Invalid Date";
-
-          // Fetch metadata from the token URI
-          const meta = await axios.get(offer.tokenURI);
-          console.log(
-            `Metadata for offer token ${offeredTokenIdNumber}:`,
-            meta.data
-          );
-
-          // Fetch creator ID from the account mapping
-          const creatorId =
-            accountsMappingRef.current[offer.offerer.toLowerCase()] || 0;
-
-          // Generate random likes for the offer (or use actual data if available)
-          const randomLikes = Math.floor(Math.random() * 501);
-
-          // Construct the offer item object
-          const item = {
-            tokenId: offeredTokenIdNumber,
-            offerId: offerId,
-            offerer: offer.offerer,
-            itemOwner: offer.offerer,
-            creatorId: creatorId,
-            isAccepted: offer.isAccepted,
-            name: meta.data.name,
-            description: meta.data.description,
-            image: meta.data.image,
-            category: meta.data.category,
-            swapCategory: meta.data.swapCategories,
-            likes: randomLikes,
-            offerExpire: expirationTimeNumber,
-            offerExpireDateTime: expirationDateTime,
-          };
-
-          console.log("Processed offer item:", item);
-          return item;
-        } catch (innerError) {
-          console.error(`Error processing offer ${index + 1}:`, innerError);
-          return null; // Continue processing other offers even if one fails
+  const createBarterOffer = async (
+    listingId,
+    offerTokenId,
+    durationInHours = 24
+  ) => {
+    try {
+      if (!listingId || !offerTokenId) {
+          console.error("Invalid listingId or offerTokenId");
+          setOpenError(true);
+          setError("Invalid listingId or offerTokenId");
+          return;
         }
-      })
-    );
 
-    // Filter out any null items resulting from processing errors
-    const validItems = items.filter((item) => item !== null);
-    console.log("Total valid offers processed:", validItems.length);
-    return validItems;
-  } catch (error) {
-    console.error("Error fetching barter offers:", error);
-    setOpenError(true);
-    setError("Error fetching barter offers!!!");
-    return [];
-  }
-};
+      // Connect to the smart contract
+      const contract = await connectSmartContract();
+      console.log("Contract connected:", contract.target);
+
+      // Check if the contract is approved to transfer the offer token
+      const approvedAddress = await contract.getApproved(offerTokenId);
+      if (approvedAddress.toLowerCase() !== contract.target.toLowerCase()) {
+        console.log(
+          "Contract is not approved to transfer the offer token. Requesting approval..."
+        );
+
+        // Approve the contract to transfer the offer token
+        const approvalTx = await contract.approve(contract.target, offerTokenId);
+        console.log("Approval transaction sent:", approvalTx.hash);
+
+        await approvalTx.wait();
+        console.log("Contract approved to transfer the offer token");
+      } else {
+        console.log("Contract is already approved to transfer the offer token.");
+      }
+
+      // Proceed with creating the barter offer
+      console.log("Attempting to create a barter offer with:", { listingId, offerTokenId, durationInHours });
 
 
-const createBarterOffer = async (
-  listingId,
-  offerTokenId,
-  durationInHours = 24
-) => {
-  try {
-    const contract = await connectSmartContract();
-    const transaction = await contract.createBarterOffer(
-      listingId,
-      offerTokenId,
-      durationInHours
-    );
-    console.log("Transaction hash:", transaction.hash);
-    const receipt = await transaction.wait();
-    console.log("Transaction receipt:", receipt);
-
-    if (receipt.status === 0) {
-      throw new Error("Transaction failed");
-    }
-
-    // Debugging: Log all events to see what's available
-    console.log("receipt:", receipt)
-    console.log("All events:", receipt.events);
-
-    // Extract the BarterOfferCreated event
-    let offerCreatedEvent = receipt.events?.find(
-      (event) => event.event === "BarterOfferCreated"
-    );
-
-    if (!offerCreatedEvent) {
-      offerCreatedEvent = receipt.logs?.find(
-        (log) => log.eventName === "BarterOfferCreated"
+      const transaction = await contract.createBarterOffer(
+        listingId,
+        offerTokenId,
+        durationInHours
       );
-    }
+      console.log("Transaction hash:", transaction.hash);
+      const receipt = await transaction.wait();
+      console.log("Transaction receipt:", receipt);
 
-    if (!offerCreatedEvent) {
-      throw new Error(
-        "BarterOfferCreated event not found in the transaction receipt"
+      if (receipt.status === 0) {
+        throw new Error("Transaction failed");
+      }
+
+      // Debugging: Log all events to see what's available
+      console.log("receipt:", receipt)
+      console.log("All events:", receipt.events);
+
+      // Extract the BarterOfferCreated event
+      let offerCreatedEvent = receipt.events?.find(
+        (event) => event.event === "BarterOfferCreated"
       );
+
+      if (!offerCreatedEvent) {
+        offerCreatedEvent = receipt.logs?.find(
+          (log) => log.eventName === "BarterOfferCreated"
+        );
+      }
+
+      if (!offerCreatedEvent) {
+        throw new Error(
+          "BarterOfferCreated event not found in the transaction receipt"
+        );
+      }
+
+      // Extract the offerId and transactionId from the event arguments
+      const offerId = offerCreatedEvent.args.offerId.toString();
+      const transactionId = offerCreatedEvent.args.transactionId.toString();
+      const offererAddress = offerCreatedEvent.args.offerer.toString();
+
+      console.log("Barter offer created successfully with offerId:", offerId);
+      console.log("Barter offer created successfully with offererAddress:", offererAddress);
+      console.log("Associated transactionId:", transactionId);
+
+      return { offerId, transactionId }; // Return both offerId and transactionId
+    } catch (error) {
+      console.error("Error creating barter offer:", error);
+      setError(`Error creating barter offer: ${error.message}`);
+      setOpenError(true);
+      return null;
     }
-
-    // Extract the offerId and transactionId from the event arguments
-    const offerId = offerCreatedEvent.args.offerId.toString();
-    const transactionId = offerCreatedEvent.args.transactionId.toString();
-    const offererAddress = offerCreatedEvent.args.offerer.toString();
-
-    console.log("Barter offer created successfully with offerId:", offerId);
-    console.log("Barter offer created successfully with offererAddress:", offererAddress);
-    console.log("Associated transactionId:", transactionId);
-
-    return { offerId, transactionId }; // Return both offerId and transactionId
-  } catch (error) {
-    console.error("Error creating barter offer:", error);
-    setError(`Error creating barter offer: ${error.message}`);
-    setOpenError(true);
-    return null;
-  }
-};
+  };
 
 
-const acceptBarterOffer = async (listingId, offerId) => {
+  const acceptBarterOffer = async (listingId, offerId) => {
   try {
     if (!listingId || !offerId) {
       console.error("Invalid listingId or offerId");
@@ -949,8 +980,7 @@ const acceptBarterOffer = async (listingId, offerId) => {
     console.log("Contract connected:", contract.target);
 
     // Fetch the listing details to get the tokenId and currentOwner
-    const [listing, tokenURI, currentOwner] =
-      await contract.fetchNFTByListingId(listingId);
+    const [listing, tokenURI, currentOwner] = await contract.fetchNFTByListingId(listingId);
     const listingTokenId = listing.tokenId;
 
     console.log("Listing details fetched:", {
@@ -975,35 +1005,28 @@ const acceptBarterOffer = async (listingId, offerId) => {
       );
 
       // Approve the contract to transfer the listing token
-      const approvalTx = await contract.approve(
-        contract.target,
-        listingTokenId
-      );
-      const isApproved = await contract.isApprovedForAll(
-        currentAccount.address,
-        contract.target
-      );
+      const approvalTx = await contract.approve(contract.target, listingTokenId);
+      const isApproved = await contract.isApprovedForAll(currentAccount.address, contract.target);
       console.log("Is contract approved for all?", isApproved);
       console.log("Approval transaction sent:", approvalTx.hash);
 
       await approvalTx.wait();
       console.log("Contract approved to transfer the listing token");
     } else {
-      console.log("=========== Contract is already approved to transfer the listing token =========");
-    }
+      console.log("==== Contract already approved to transfer the listing token ======");
+    } // <-- Closing brace added here
 
     // Log the parameters being sent to the contract function
     console.log("Attempting to accept offer with:", { listingId, offerId });
 
     // Send the transaction with a specified gas limit
-    const gasLimit = 50000000; 
+    const gasLimit = 50000000;
     const transaction = await contract.acceptBarterOffer(listingId, offerId, {
       gasLimit,
     });
-
     // const transaction = await contract.acceptBarterOffer(listingId, offerId);
-    console.log("Transaction sent. Waiting for confirmation...");
 
+    console.log("Transaction sent. Waiting for confirmation...");
     console.log("Transaction sent. Gas limit:", gasLimit.toString());
     const receipt = await transaction.wait();
     console.log("Transaction confirmed. Gas used:", receipt.gasUsed.toString());
@@ -1022,7 +1045,7 @@ const acceptBarterOffer = async (listingId, offerId) => {
   }
 };
 
-
+  
 
   const confirmBarterTransaction = async (transactionId) => {
     try {
