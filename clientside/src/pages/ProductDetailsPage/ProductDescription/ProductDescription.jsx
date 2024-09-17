@@ -137,7 +137,7 @@ const ProductDescription = ({ nft }) => {
 
   const renderOfferButton = () => {
     const isLocked = nft.lockStatus === "Locked"; // Determine if the NFT is locked
-    const isOffered = nft.isOffered === true; // Check if there are offers for this NFT
+    const isOffered = nft.isOffered === "true" || nft.activeOfferCount >=1;
 
     if (isContractOwner) {
       return <p>Item Listed on MarketPlace</p>;
@@ -160,12 +160,19 @@ const ProductDescription = ({ nft }) => {
         // Handle when the item has offers
         return (
           <>
-            <p style={{ lineHeight: 2, color: 'yellow' }}>You have some offers for this product!!!</p>
+            <p style={{ lineHeight: 2, color: 'yellow' }}>
+              You have{' '}
+              {nft.activeOfferCount} {' '}
+              pending offer{nft.activeOfferCount > 1 ? 's' : ''} for this product!
+            </p>
             <Button
               icon={<FaWallet />}
-              btnName="View Offers"
+              btnName={
+                'View offer' + (nft.activeOfferCount > 1 ? 's' : '')
+              }
               handleClick={() => router.push(`/view_offer?listingId=${nft.tokenId}`)}
               classStyle={Style.button}
+
             />
           </>
         );
