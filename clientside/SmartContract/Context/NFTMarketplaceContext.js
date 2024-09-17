@@ -1006,7 +1006,7 @@ const acceptBarterOffer = async (listingId, offerId) => {
     // }
 
     // Send the transaction with a specified gas limit
-    const gasLimit = 50000000; // Adjust as needed
+    const gasLimit = 50000000; 
     const transaction = await contract.acceptBarterOffer(listingId, offerId, {
       gasLimit,
     });
