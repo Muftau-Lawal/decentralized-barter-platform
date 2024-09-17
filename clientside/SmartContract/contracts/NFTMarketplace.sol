@@ -349,18 +349,14 @@ contract NFTMarketplace is ERC721URIStorage {
         );
 
         // Transfer the offerer's NFT from the contract to the item owner
-        try _transfer(address(this), msg.sender, offer.offerTokenId) {
-            emit OfferNFTTransferred(offerId, msg.sender);
-        } catch Error(string memory reason) {
-            revert(string(abi.encodePacked("Failed to transfer offer token: ", reason)));
-        }
+        _transfer(address(this), msg.sender, offer.offerTokenId);
+        emit OfferNFTTransferred(offerId, msg.sender);
+
 
         // Transfer the item owner's NFT from the item owner to the offerer
-        try _transfer(msg.sender, offer.offerer, listing.tokenId) {
-            emit ListingNFTTransferred(listingId, offer.offerer);
-        } catch Error(string memory reason) {
-            revert(string(abi.encodePacked("Failed to transfer listing token: ", reason)));
-        }
+        _transfer(msg.sender, offer.offerer, listing.tokenId);
+        emit ListingNFTTransferred(listingId, offer.offerer);
+
 
         // Update the status of the offer and tokens
         offer.isActive = false;
@@ -386,8 +382,6 @@ contract NFTMarketplace is ERC721URIStorage {
 
         emit BarterOfferAccepted(transactionId, listingId, offerId);
     }
-
-
 
 
 
