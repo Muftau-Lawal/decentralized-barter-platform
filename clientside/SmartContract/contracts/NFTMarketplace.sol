@@ -5,7 +5,6 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "hardhat/console.sol";
 import "./Counter.sol";
 import "./HTLC.sol";
-import "hardhat/console.sol";
 
 
 contract NFTMarketplace is ERC721URIStorage {
@@ -76,7 +75,9 @@ contract NFTMarketplace is ERC721URIStorage {
     event BarterListingCreated(uint256 indexed listingId, uint256 indexed tokenId, address itemOwner, uint256 expirationTime);
     event BarterOfferCreated(uint256 indexed offerId, uint256 indexed listingId, uint256 offerTokenId, address offerer, uint256 expirationTime, uint256 transactionId);
     event HTLCSwapInitiated(bytes32 indexed swapId, uint256 indexed listingId, uint256 indexed offerId);
-    event BarterOfferAccepted(uint256 transactionId, uint256 indexed listingId, uint256 indexed offerId);    
+    event OfferNFTTransferred(uint256 indexed offerId, address indexed to);
+    event ListingNFTTransferred(uint256 indexed listingId, address indexed to);
+    event BarterOfferAccepted(uint256 transactionId, uint256 indexed listingId, uint256 indexed offerId);
     event BarterOfferDeclined(uint256 indexed listingId, uint256 indexed offerId);
     event BarterTransactionCompleted(uint256 indexed transactionId);
     event BarterTransactionCancelled(uint256 indexed transactionId);
@@ -121,7 +122,6 @@ contract NFTMarketplace is ERC721URIStorage {
     }
 
     function fetchMyNFTs(address walletAddress) public view returns (uint256[] memory) {
-        console.log("itemOwner walletAdderss: ",walletAddress );
         if (walletAddress == address(0)) {
             return ownerToNFTs[msg.sender];
         } else {
@@ -138,8 +138,6 @@ contract NFTMarketplace is ERC721URIStorage {
 
         for (uint i = 1; i <= totalListingCount; i++) {
             BarterListing storage currentListing = idToBarterListing[i];
-            console.log("Fetching listing: ", i);
-            console.log("Listing active status: ", currentListing.isActive);
 
             // Only include active listings
             if (currentListing.isActive) {
@@ -153,7 +151,6 @@ contract NFTMarketplace is ERC721URIStorage {
             mstore(listings, currentIndex)
         }
 
-        console.log("Number of active listings returned: ", currentIndex);
         return listings;
     }
 
@@ -320,58 +317,76 @@ contract NFTMarketplace is ERC721URIStorage {
 
 
 
-function acceptBarterOffer(uint256 listingId, uint256 offerId) public {
-    console.log("AcceptBarterOffer called with listingId:", listingId);
-    console.log("AcceptBarterOffer called with offerId:", offerId);
-    console.log("Sender:", msg.sender);
+    function acceptBarterOffer(uint256 listingId, uint256 offerId) public {
+        // Ensure that the caller is the owner of the listing
+        BarterListing storage listing = idToBarterListing[listingId];
+        BarterOffer storage offer = idToBarterOffer[offerId];
 
-    // Ensure that the caller is the owner of the listing
-    BarterListing storage listing = idToBarterListing[listingId];
-    BarterOffer storage offer = idToBarterOffer[offerId];
+        require(listing.itemOwner == msg.sender, "You are not the owner of this listing");
+        require(offer.listingId == listingId, "Offer does not match listing");
+        require(offer.isActive, "Offer is not active");
+        require(block.timestamp < offer.expirationTime, "Offer has expired");
 
-    require(listing.itemOwner == msg.sender, "You are not the owner of this listing");
-    require(offer.listingId == listingId, "Offer does not match listing");
-    require(offer.isActive, "Offer is not active");
-    require(block.timestamp < offer.expirationTime, "Offer has expired");
+        require(
+            getApproved(listing.tokenId) == address(this) || isApprovedForAll(msg.sender, address(this)),
+            "Contract not approved to transfer the listing token"
+        );
 
-    // Increment the transaction ID
-    _transactionIds.increment();
-    uint256 transactionId = _transactionIds.current();
+        // Record the accepted transaction
+        _transactionIds.increment();
+        uint256 transactionId = _transactionIds.current();
 
-    // Record the accepted transaction
-    idToBarterTransaction[transactionId] = BarterTransaction(
-        transactionId,
-        listingId,
-        offerId,
-        listing.itemOwner,
-        offer.offerer,
-        listing.tokenId,
-        offer.offerTokenId,
-        block.timestamp,
-        TransactionStatus.Accepted
-    );
+        idToBarterTransaction[transactionId] = BarterTransaction(
+            transactionId,
+            listingId,
+            offerId,
+            listing.itemOwner,
+            offer.offerer,
+            listing.tokenId,
+            offer.offerTokenId,
+            block.timestamp,
+            TransactionStatus.Accepted
+        );
 
-    // Transfer the NFTs
-    _transfer(address(this), listing.itemOwner, offer.offerTokenId);
-    _transfer(address(this), offer.offerer, listing.tokenId);
-
-    // Update the status of the offer and tokens
-    offer.isActive = false;
-    offer.isAccepted = true;
-    offer.expirationTime = 0;
-    tokenInActiveOffer[offer.offerTokenId] = false;
-
-    // Deactivate all other offers for this listing
-    for (uint i = 0; i < listingToOffers[listingId].length; i++) {
-        uint256 currentOfferId = listingToOffers[listingId][i];
-        if (currentOfferId != offerId && idToBarterOffer[currentOfferId].isActive) {
-            idToBarterOffer[currentOfferId].isActive = false;
-            tokenInActiveOffer[idToBarterOffer[currentOfferId].offerTokenId] = false;
+        // Transfer the offerer's NFT from the contract to the item owner
+        try _transfer(address(this), msg.sender, offer.offerTokenId) {
+            emit OfferNFTTransferred(offerId, msg.sender);
+        } catch Error(string memory reason) {
+            revert(string(abi.encodePacked("Failed to transfer offer token: ", reason)));
         }
+
+        // Transfer the item owner's NFT from the item owner to the offerer
+        try _transfer(msg.sender, offer.offerer, listing.tokenId) {
+            emit ListingNFTTransferred(listingId, offer.offerer);
+        } catch Error(string memory reason) {
+            revert(string(abi.encodePacked("Failed to transfer listing token: ", reason)));
+        }
+
+        // Update the status of the offer and tokens
+        offer.isActive = false;
+        offer.isAccepted = true;
+        offer.expirationTime = 0;
+        tokenInActiveOffer[offer.offerTokenId] = false;
+
+        // Deactivate all other offers for this listing and return their NFTs
+        for (uint i = 0; i < listingToOffers[listingId].length; i++) {
+            uint256 currentOfferId = listingToOffers[listingId][i];
+            if (currentOfferId != offerId && idToBarterOffer[currentOfferId].isActive) {
+                BarterOffer storage otherOffer = idToBarterOffer[currentOfferId];
+                otherOffer.isActive = false;
+                tokenInActiveOffer[otherOffer.offerTokenId] = false;
+
+                // Return the other offerers' NFTs to them
+                _transfer(address(this), otherOffer.offerer, otherOffer.offerTokenId);
+            }
+        }
+
+        // Deactivate the listing as the exchange is complete
+        // listing.isActive = false;
+
+        emit BarterOfferAccepted(transactionId, listingId, offerId);
     }
 
-    emit BarterOfferAccepted(transactionId, listingId, offerId);
-}
 
 
 
@@ -397,9 +412,6 @@ function acceptBarterOffer(uint256 listingId, uint256 offerId) public {
 
 
     function declineBarterOffer(uint256 listingId, uint256 offerId) public {
-        console.log("DeclineBarterOffer called with listingId:", listingId);
-        console.log("DeclineBarterOffer called with offerId:", offerId);
-        console.log("Sender:", msg.sender);
         BarterOffer storage offer = idToBarterOffer[offerId];
         require(offer.isActive, "Offer is not active");
         require(offer.listingId == listingId, "Offer does not match listing");
