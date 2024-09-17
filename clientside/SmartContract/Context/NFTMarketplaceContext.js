@@ -53,16 +53,12 @@ export const NFTMarketplaceProvider = ({ children }) => {
 
   const connectSmartContract = async () => {
     try {
-      console.log("Initializing Web3Modal...");
       const web3Modal = new Web3Modal();
 
       console.log("Connecting to wallet...");
       const connection = await web3Modal.connect();
       console.log("Wallet connected:", connection);
-
-      console.log("Creating provider...");
       const provider = new ethers.BrowserProvider(connection);
-      console.log("Provider created:", provider);
 
       console.log("Getting signer...");
       const signerPromise = provider.getSigner();
@@ -72,10 +68,7 @@ export const NFTMarketplaceProvider = ({ children }) => {
       const userAddress = signer.address;
       console.log("Signer obtained. Address:", userAddress);
 
-      console.log("Fetching contract...");
       const contract = fetchContract(signer);
-      console.log("Contract fetched:", contract);
-
       return contract;
     } catch (error) {
       setOpenError(true);
@@ -493,173 +486,7 @@ const connectWallet = async () => {
     }
   };
 
-// const fetchMyNFTs = async (walletAddress) => {
-//   try {
-//     const contract = await connectSmartContract();
-//     console.log("Contract connected successfully");
 
-//     // Fetch both NFT IDs and their lock statuses
-//     const [nftIds, isLocked] = await contract.fetchMyNFTs(walletAddress);
-//     // const nftIds = await contract.fetchMyNFTs(walletAddress);
-//     console.log("Fetched MyNFTs data:", nftIds, isLocked);
-
-//     // Check if both arrays are valid
-
-
-//     console.log(`Processing ${nftIds.length} NFTs...`);
-//     const items = await Promise.all(
-//       nftIds.map(async (tokenId, index) => {
-//         try {
-//           console.log(`Processing NFT ${index + 1}/${nftIds.length}`);
-//           console.log("Token ID:", tokenId);
-
-//           // Convert tokenId to a regular number if it's a BigNumber
-//           const normalizedTokenId = tokenId.toNumber
-//             ? tokenId.toNumber()
-//             : Number(tokenId);
-
-//           const tokenURI = await contract.tokenURI(normalizedTokenId);
-//           console.log(`TokenURI for tokenId ${normalizedTokenId}:`, tokenURI);
-
-//           const meta = await axios.get(tokenURI);
-//           console.log(`Metadata for tokenId ${normalizedTokenId}:`, meta.data);
-
-//           const itemOwner = await contract.ownerOf(normalizedTokenId);
-//           const normalizedOwner = itemOwner.toLowerCase();
-//           const normalizedWalletAddress = walletAddress.toLowerCase();
-
-//           // Filter out NFTs that do not match the passed walletAddress
-//           if (normalizedOwner !== normalizedWalletAddress) {
-//             console.log(
-//               `Skipping NFT ${normalizedTokenId} as it does not belong to the wallet address ${walletAddress}`
-//             );
-//             return null;
-//           }
-
-//           const creatorId = accountsMappingRef.current[normalizedOwner] || 0;
-//           const randomLikes = Math.floor(Math.random() * 501);
-
-//           // Include the lock status from the corresponding index in isLocked array
-//           const lockStatus = isLocked[index];
-
-//           let item = {
-//             tokenId: normalizedTokenId,
-//             owner: itemOwner,
-//             creatorId: creatorId,
-//             contractOwner: contract.target,
-//             itemOwner: itemOwner,
-//             likes: randomLikes,
-//             name: meta.data.name,
-//             description: meta.data.description,
-//             image: meta.data.image,
-//             category: meta.data.category,
-//             swapCategory: meta.data.swapCategories,
-//             isLocked: lockStatus,
-//           };
-//           console.log("MY NFTs:", item);
-//           return item;
-//         } catch (error) {
-//           console.error(`Error processing NFT ${index + 1}:`, error);
-//           return null;
-//         }
-//       })
-//     );
-
-//     const validItems = items.filter((item) => item !== null);
-//     console.log("Total valid NFTs processed:", validItems.length);
-//     return validItems;
-//   } catch (error) {
-//     console.error("Error in fetchMyNFTs:", error);
-//     throw error;
-//   }
-  // };
-  
-
-    // const fetchMyNFTs = async (walletAddress) => {
-    //   try {
-    //       const contract = await connectSmartContract();
-    //       console.log("Contract connected successfully");
-    //       const data = await contract.fetchMyNFTs(walletAddress);
-    //       console.log("Fetched MyNFTs data:", data);
-
-    //       if (!Array.isArray(data) || data.length === 0) {
-    //         console.log("No NFTs found or data is not in expected format");
-    //         return [];
-    //       }
-
-    //       console.log(`Processing ${data.length} NFTs...`);
-    //       const items = await Promise.all(
-    //         data.map(async (tokenId, index) => {
-    //           try {
-    //             console.log(`Processing NFT ${index + 1}/${data.length}`);
-    //             console.log("Token ID:", tokenId);
-
-    //             // Convert tokenId to a regular number if it's a BigNumber
-    //             const normalizedTokenId = tokenId.toNumber
-    //               ? tokenId.toNumber()
-    //               : Number(tokenId);
-
-    //             const tokenURI = await contract.tokenURI(normalizedTokenId);
-    //             console.log(
-    //               `TokenURI for tokenId ${normalizedTokenId}:`,
-    //               tokenURI
-    //             );
-
-    //             const meta = await axios.get(tokenURI);
-    //             console.log(
-    //               `Metadata for tokenId ${normalizedTokenId}:`,
-    //               meta.data
-    //             );
-
-    //             const itemOwner = await contract.ownerOf(normalizedTokenId);
-    //             const normalizedOwner = itemOwner.toLowerCase();
-    //             const normalizedWalletAddress = walletAddress.toLowerCase();
-
-    //             // Filter out NFTs that do not match the passed walletAddress
-    //             if (normalizedOwner !== normalizedWalletAddress) {
-    //               console.log(
-    //                 `Skipping NFT ${normalizedTokenId} as it does not belong to the wallet address ${walletAddress}`
-    //               );
-    //               return null;
-    //             }
-
-    //             const creatorId =
-    //               accountsMappingRef.current[normalizedOwner] || 0;
-
-    //             const randomLikes = Math.floor(Math.random() * 501);
-
-    //             let item = {
-    //               tokenId: normalizedTokenId,
-    //               owner: itemOwner,
-    //               creatorId: creatorId,
-    //               contractOwner: contract.target,
-    //               itemOwner: itemOwner,
-    //               likes: randomLikes,
-    //               name: meta.data.name,
-    //               description: meta.data.description,
-    //               image: meta.data.image,
-    //               image: meta.data.image,
-    //               Category: meta.data.category,
-    //               swapCategory: meta.data.swapCategories,
-    //             };
-    //             console.log("MY NFTs:", item);
-    //             return item;
-    //           } catch (error) {
-    //             console.error(`Error processing NFT ${index + 1}:`, error);
-    //             return null;
-    //           }
-    //         })
-    //       );
-
-    //       const validItems = items.filter((item) => item !== null);
-    //       console.log("Total valid NFTs processed:", validItems.length);
-    //       return validItems;
-    //     } catch (error) {
-    //       console.error("Error in fetchMyNFTs:", error);
-    //       throw error;
-    //     }
-    //   };
-  
 const fetchMyNFTs = async (walletAddress) => {
   try {
     const contract = await connectSmartContract();
@@ -1048,8 +875,6 @@ const getBarterOffers = async (listingId) => {
 };
 
 
-
-  
 const createBarterOffer = async (
   listingId,
   offerTokenId,
@@ -1110,41 +935,103 @@ const createBarterOffer = async (
 };
 
 
-  const acceptBarterOffer = async (listingId, offerId) => {
-    try {
-      if (!listingId || !offerId) {
-        console.error("Invalid listingId or offerId");
-        setOpenError(true);
-        setError("Invalid listingId or offerId");
-        return;
-      }
-
-          // Connect to the smart contract
-      const contract = await connectSmartContract();
-      console.log("Contract connected:", contract.target);
-
-      // Log the parameters being sent to the contract function
-      console.log("Attempting to accept offer with:", { listingId, offerId });
-
-      // Send the transaction without gas estimation
-      const transaction = await contract.acceptBarterOffer(listingId, offerId);
-      console.log("Transaction sent. Waiting for confirmation...");
-
-      await transaction.wait();
-      console.log("Barter offer accepted successfully");
-
-      router.push(`/author?tab=owned&walletAddress=${currentAccount.address}`);
-    } catch (error) {
-      console.error("Error accepting barter offer:", error);
-      if (error?.data?.message) {
-        console.error("Revert reason:", error.data.message);
-      } else if (error?.message) {
-        console.error("Error message:", error.message);
-      }
+const acceptBarterOffer = async (listingId, offerId) => {
+  try {
+    if (!listingId || !offerId) {
+      console.error("Invalid listingId or offerId");
       setOpenError(true);
-      setError("Error accepting barter offer. Check console for details.");
+      setError("Invalid listingId or offerId");
+      return;
     }
-  };
+
+    // Connect to the smart contract
+    const contract = await connectSmartContract();
+    console.log("Contract connected:", contract.target);
+
+    // Fetch the listing details to get the tokenId and currentOwner
+    const [listing, tokenURI, currentOwner] =
+      await contract.fetchNFTByListingId(listingId);
+    const listingTokenId = listing.tokenId;
+
+    console.log("Listing details fetched:", {
+      listing,
+      tokenURI,
+      currentOwner,
+    });
+
+    // Ensure that the caller is the current owner of the listing token
+    if (currentOwner.toLowerCase() !== currentAccount.address.toLowerCase()) {
+      console.error("You are not the current owner of this listing token");
+      setOpenError(true);
+      setError("You are not the current owner of this listing token");
+      return;
+    }
+
+    // Optional: Check if the contract is approved to transfer the NFT
+    const approvedAddress = await contract.getApproved(listingTokenId);
+    if (approvedAddress.toLowerCase() !== contract.target.toLowerCase()) {
+      console.log(
+        "Contract is not approved to transfer the listing token. Requesting approval..."
+      );
+
+      // Approve the contract to transfer the listing token
+      const approvalTx = await contract.approve(
+        contract.target,
+        listingTokenId
+      );
+      const isApproved = await contract.isApprovedForAll(
+        currentAccount.address,
+        contract.target
+      );
+      console.log("Is contract approved for all?", isApproved);
+      console.log("Approval transaction sent:", approvalTx.hash);
+
+      await approvalTx.wait();
+      console.log("Contract approved to transfer the listing token");
+    } else {
+      console.log("=========== Contract is already approved to transfer the listing token =========");
+    }
+
+    // Log the parameters being sent to the contract function
+    console.log("Attempting to accept offer with:", { listingId, offerId });
+
+    // Simulate the transaction to capture revert reasons
+    // try {
+    //   await contract.callStatic.acceptBarterOffer(listingId, offerId);
+    // } catch (error) {
+    //   console.error("Revert reason from callStatic:", error);
+    //   setOpenError(true);
+    //   setError("Error accepting barter offer: " + error.message);
+    //   return;
+    // }
+
+    // Send the transaction with a specified gas limit
+    const gasLimit = 50000000; // Adjust as needed
+    const transaction = await contract.acceptBarterOffer(listingId, offerId, {
+      gasLimit,
+    });
+    // const transaction = await contract.acceptBarterOffer(listingId, offerId);
+    console.log("Transaction sent. Waiting for confirmation...");
+
+    console.log("Transaction sent. Gas limit:", gasLimit.toString());
+    const receipt = await transaction.wait();
+    console.log("Transaction confirmed. Gas used:", receipt.gasUsed.toString());
+    console.log("Barter offer accepted successfully");
+
+    router.push(`/author?tab=owned&walletAddress=${currentAccount.address}`);
+  } catch (error) {
+    console.error("Error accepting barter offer:", error);
+    if (error?.data?.message) {
+      console.error("Revert reason:", error.data.message);
+    } else if (error?.message) {
+      console.error("Error message:", error.message);
+    }
+    setOpenError(true);
+    setError("Error accepting barter offer. Check console for details.");
+  }
+};
+
+
 
   const confirmBarterTransaction = async (transactionId) => {
     try {
