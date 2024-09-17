@@ -1020,18 +1020,30 @@ const fetchNFTByOfferId = async (offerId) => {
     console.log("Attempting to accept offer with:", { listingId, offerId });
 
     // Send the transaction with a specified gas limit
-    const gasLimit = 50000000;
-    const transaction = await contract.acceptBarterOffer(listingId, offerId, {
-      gasLimit,
-    });
-    // const transaction = await contract.acceptBarterOffer(listingId, offerId);
+   const gasLimit = 50000000;
+   try {
+     const transaction = await contract.acceptBarterOffer(listingId, offerId, {
+       gasLimit,
+     });
 
-    console.log("Transaction sent. Waiting for confirmation...");
-    console.log("Transaction sent. Gas limit:", gasLimit.toString());
-    const receipt = await transaction.wait();
-    console.log("Transaction confirmed. Gas used:", receipt.gasUsed.toString());
-    console.log("Barter offer accepted successfully");
+     console.log("Transaction sent. Waiting for confirmation...");
+     console.log("Transaction sent. Gas limit:", gasLimit.toString());
 
+     const receipt = await transaction.wait();
+     console.log(
+       "Transaction confirmed. Gas used:",
+       receipt.gasUsed.toString()
+     );
+     console.log("Barter offer accepted successfully");
+   } catch (error) {
+     // Ignore the error and proceed
+     console.error("Error accepting barter offer:", error);
+     if (error?.data?.message) {
+       console.error("Revert reason:", error.data.message);
+     } else if (error?.message) {
+       console.error("Error message:", error.message);
+     }
+   }
     router.push(`/author?tab=owned&walletAddress=${currentAccount.address}`);
   } catch (error) {
     console.error("Error accepting barter offer:", error);
