@@ -995,21 +995,12 @@ const acceptBarterOffer = async (listingId, offerId) => {
     // Log the parameters being sent to the contract function
     console.log("Attempting to accept offer with:", { listingId, offerId });
 
-    // Simulate the transaction to capture revert reasons
-    // try {
-    //   await contract.callStatic.acceptBarterOffer(listingId, offerId);
-    // } catch (error) {
-    //   console.error("Revert reason from callStatic:", error);
-    //   setOpenError(true);
-    //   setError("Error accepting barter offer: " + error.message);
-    //   return;
-    // }
-
     // Send the transaction with a specified gas limit
     const gasLimit = 50000000; 
     const transaction = await contract.acceptBarterOffer(listingId, offerId, {
       gasLimit,
     });
+
     // const transaction = await contract.acceptBarterOffer(listingId, offerId);
     console.log("Transaction sent. Waiting for confirmation...");
 
