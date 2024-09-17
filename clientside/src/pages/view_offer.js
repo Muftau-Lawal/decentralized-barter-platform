@@ -1,16 +1,22 @@
 import React, { useContext, useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { FaWallet, FaPercentage } from "react-icons/fa";
-import { MdVerified, MdTimer, MdCancel } from 'react-icons/md';
+import { MdVerified, MdTimer, MdCancel, MdArrowBack } from "react-icons/md";
 import Style from "../styles/view-offer.module.css";
 import ProductStyle from "./ProductDetailsPage/ProductDescription/ProductDescription.module.css";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { EffectCoverflow, Pagination, Navigation } from "swiper/modules";
-import 'swiper/css';
-import 'swiper/css/effect-coverflow';
-import 'swiper/css/navigation';
-import 'swiper/css/pagination';
-import { Button, Category, Title, Loader, Error } from "../components/componentsIndex";
+import "swiper/css";
+import "swiper/css/effect-coverflow";
+import "swiper/css/navigation";
+import "swiper/css/pagination";
+import {
+  Button,
+  Category,
+  Title,
+  Loader,
+  Error,
+} from "../components/componentsIndex";
 import images from "../assets/img";
 import userData from "../assets/Data/userData.json";
 
@@ -19,7 +25,6 @@ import { NFTMarketplaceContext } from "../../SmartContract/Context/NFTMarketplac
 import Image from "next/image";
 import Link from "next/link";
 
-
 const ViewOffer = () => {
   const {
     fetchNFTByListingId,
@@ -27,6 +32,9 @@ const ViewOffer = () => {
     getBarterOffers,
     currentAccount,
     checkWalletConnection,
+    acceptBarterOffer,
+    declineBarterOffer,
+    handleExpiredOffers,
   } = useContext(NFTMarketplaceContext);
 
   const [listingNFT, setListingNFT] = useState(null);
@@ -76,18 +84,10 @@ const ViewOffer = () => {
         const userAddress = currentAccount?.address?.toLowerCase();
         const listingOwnerAddress = fetchedListingNFT.itemOwner?.toLowerCase();
 
-        // Log the addresses for debugging
-        console.log("User Address:", userAddress);
-        console.log("Listing Owner Address:", listingOwnerAddress);
-
         if (parsedOfferId) {
           const fetchedOfferNFT = await fetchNFTByOfferId(parsedOfferId);
           const offerOwnerAddress = fetchedOfferNFT.itemOwner?.toLowerCase();
 
-          // Log the offer owner address for debugging
-          console.log("Offer Owner Address:", offerOwnerAddress);
-
-          // Check if the viewer is the offer owner
           if (userAddress === offerOwnerAddress) {
             setOfferNFTs(
               Array.isArray(fetchedOfferNFT)
@@ -95,21 +95,21 @@ const ViewOffer = () => {
                 : [fetchedOfferNFT]
             );
           } else {
-            console.log("User is not the offer owner.");
             setError("You are not authorized to view this offer.");
             setLoading(false);
             return;
           }
         } else if (userAddress === listingOwnerAddress) {
-          // If the viewer is the listed NFT owner
-          console.log("User is the listing owner.");
           const allOffers = await getBarterOffers(parsedListingId);
           setOfferNFTs(allOffers);
         } else {
-          console.log("User is neither the listing owner nor the offer owner.");
           setError("You are not authorized to view this listing.");
           setLoading(false);
-          return;
+
+          const timer = setTimeout(() => {
+            router.back();
+          }, 3000);
+          return () => clearTimeout(timer);
         }
 
         setLoading(false);
@@ -159,12 +159,12 @@ const ViewOffer = () => {
   }, [offerNFTs]);
 
   if (loading) {
-    return <Loader />; // Display loading component while fetching data
+    return <Loader />;
   }
 
-if (error) {
-  return <Error message={error} />;
-}
+  if (error) {
+    return <Error message={error} />;
+  }
 
   if (!listingNFT) {
     setError("No NFT data available.");
@@ -176,6 +176,41 @@ if (error) {
     userName: "Unknown User",
     userImage: images.user1,
   };
+
+  const handleDeclineBarterOffer = async (listingId, offerId, index) => {
+    try {
+      console.log("Declining offer:", offerId, "for listing:", listingId);
+
+      // Call the declineBarterOffer function from your context or smart contract
+      await declineBarterOffer(listingId, offerId);
+
+      // Remove the declined offer from the offerNFTs array
+      const updatedOfferNFTs = offerNFTs.filter((_, i) => i !== index);
+      setOfferNFTs(updatedOfferNFTs); // Update state to trigger re-render
+    } catch (error) {
+      console.error("Error declining barter offer:", error);
+    }
+  };
+
+  const handleAcceptBarterOffer = async (listingId, offerId, index) => {
+    try {
+      console.log("Accepting offer:", offerId, "for listing:", listingId);
+
+      // Call the acceptBarterOffer function from your context or smart contract
+      await acceptBarterOffer(listingId, offerId);
+
+      // Remove the accepted offer from the offerNFTs array
+      const updatedOfferNFTs = offerNFTs.filter((_, i) => i !== index);
+      setOfferNFTs(updatedOfferNFTs); // Update state to trigger re-render
+
+      // Optionally, redirect or show a success message
+      console.log("Barter offer accepted successfully");
+      router.push(`/author?tab=owned&walletAddress=${currentAccount.address}`);
+    } catch (error) {
+      console.error("Error accepting barter offer:", error);
+    }
+  };
+
 
   return (
     <div>
@@ -247,10 +282,9 @@ if (error) {
           </div>
         </div>
 
-        {/* offer NFT Section */}
+        {/* Offer NFT Section */}
         <div className={Style.nft_offer_container}>
           {offerNFTs.length === 0 ? (
-            // No Offers Available
             <div
               style={{ textAlign: "center", padding: "20px", margin: "14rem" }}
             >
@@ -279,7 +313,6 @@ if (error) {
               </button>
             </div>
           ) : (
-            // Display Offers
             <>
               <Swiper
                 effect="coverflow"
@@ -302,87 +335,146 @@ if (error) {
                 }}
                 className="mySwiper"
               >
-                {offerNFTs.map((offerNFT, index) => {
-                  const offererId = offerNFT.creatorId;
-                  const offerer = userData[offererId];
-                  const offererAddress = offerNFT.itemOwner
-                    ? offerNFT.itemOwner
-                    : "Unknown Address";
-                  const shortenedAddress = `${offererAddress.slice(
-                    0,
-                    6
-                  )}....${offererAddress.slice(-3)}`;
-                  const expirationTime = offerNFT.offerExpireDateTime;
-                  const countdown =
-                    countdowns[offerNFT.tokenId] || "Calculating...";
+                {offerNFTs
+                  .filter(
+                    (offerNFT) =>
+                      Number(offerNFT.offerExpire) > Date.now() / 1000 // Filter only non-expired offers
+                  )
+                  .map((offerNFT, index) => {
+                    const offererId = offerNFT.creatorId;
+                    const offerer = userData[offererId];
+                    const offererAddress = offerNFT.itemOwner
+                      ? offerNFT.itemOwner
+                      : "Unknown Address";
+                    const shortenedAddress = `${offererAddress.slice(
+                      0,
+                      6
+                    )}....${offererAddress.slice(-3)}`;
+                    const expirationTime = offerNFT.offerExpireDateTime;
+                    const countdown =
+                      countdowns[offerNFT.tokenId] || "Calculating...";
 
-                  return (
-                    <SwiperSlide key={index}>
-                      <div className={`${Style.nft_side} swiper-slide`}>
-                        <h3>
-                          Offer #{index + 1}/{offerNFTs.length}
-                        </h3>
-                        <Image
-                          src={offerNFT.image || "/placeholder.png"}
-                          alt={offerNFT.name || "Unnamed NFT"}
-                          width={300}
-                          height={300}
-                          style={{ objectFit: "contain" }}
-                        />
-                        <p>{offerNFT.name || "Unnamed NFT"}</p>
-                        <p>Offerer: {offerer ? offerer.userName : "Unknown"}</p>
-                        <p>Address: {shortenedAddress}</p>
-                        <p>Offer Lock Till: {expirationTime}</p>
-                        <p>Time Left: {countdown}</p>
-                      </div>
-                    </SwiperSlide>
-                  );
-                })}
+                    return (
+                      <SwiperSlide key={index}>
+                        <div className={`${Style.nft_side} swiper-slide`}>
+                          <h3>
+                            {currentAccount?.address?.toLowerCase() ===
+                              offererAddress?.toLowerCase()
+                              ? "My Pending Offer"
+                              : `Offer #${index + 1}/${offerNFTs.filter(
+                                (offerNFT) =>
+                                  Number(offerNFT.offerExpire) >
+                                  Date.now() / 1000
+                              ).length
+                              }`}
+                          </h3>
+                          <Image
+                            src={offerNFT.image || "/placeholder.png"}
+                            alt={offerNFT.name || "Unnamed NFT"}
+                            width={300}
+                            height={300}
+                            style={{ objectFit: "contain" }}
+                          />
+                          <p>{offerNFT.name || "Unnamed NFT"}</p>
+                          <p>Offerer: {offerer ? offerer.userName : "Unknown"}</p>
+                          <p>Address: {shortenedAddress}</p>
+                          <p>Offer Lock Till: {expirationTime}</p>
+                          <p>Time Left: {countdown}</p>
+
+                          {/* Show buttons aligned in a row for the listing owner */}
+                          {currentAccount?.address?.toLowerCase() ===
+                            listingNFT.itemOwner?.toLowerCase() ? (
+                            <div
+                              style={{
+                                display: "flex",
+                                gap: "10px",
+                                marginTop: "10px",
+                                justifyContent: "center",
+                              }}
+                            >
+                              <Button
+                                icon={<FaWallet />}
+                                btnName="Accept Offer"
+                                handleClick={() =>
+                                  handleAcceptBarterOffer(
+                                    Number(listingNFT.tokenId),
+                                    Number(offerNFT.offerId),
+                                    index
+                                  )
+                                }
+                                classStyle={Style.accept_button}
+                              />
+                              <Button
+                                icon={<MdCancel />}
+                                btnName="Reject Offer"
+                                handleClick={() =>
+                                  handleDeclineBarterOffer(
+                                    Number(listingNFT.tokenId),
+                                    Number(offerNFT.offerId),
+                                    index
+                                  )
+                                }
+                                classStyle={Style.decline_button}
+                              />
+                              <Button
+                                icon={<MdArrowBack />}
+                                btnName="Back to My Items"
+                                handleClick={() => {
+                                  router.push(
+                                    `/author?tab=owned&walletAddress=${currentAccount.address}`
+                                  );
+                                }}
+                                classStyle={Style.pending_button}
+                              />
+                            </div>
+                          ) : (
+                            /* Buttons for the offerer */
+                            <div
+                              style={{
+                                display: "flex",
+                                gap: "10px",
+                                marginTop: "10px",
+                              }}
+                            >
+                              <Button
+                                icon={<MdTimer />}
+                                btnName="Pending Offer"
+                                classStyle={Style.pending_button}
+                                disabled
+                              />
+                              <Button
+                                icon={<MdCancel />}
+                                btnName="Cancel My Offer"
+                                handleClick={() =>
+                                  handleDeclineBarterOffer(
+                                    Number(listingNFT.tokenId),
+                                    Number(offerNFT.offerId),
+                                    index
+                                  )
+                                }
+                                classStyle={Style.decline_button}
+                              />
+                              <Button
+                                icon={<MdArrowBack />}
+                                btnName="Go Back"
+                                handleClick={() => {
+                                  router.push(
+                                    `/author?tab=owned&walletAddress=${currentAccount.address}`
+                                  );
+                                }}
+                                classStyle={Style.pending_button}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </SwiperSlide>
+                    );
+                  })}
               </Swiper>
 
               <div className={Style.slider_controller}>
                 <div className="swiper-button-prev slider-arrow"></div>
                 <div className="swiper-button-next slider-arrow"></div>
-              </div>
-
-              <div className={Style.box_tabs}>
-                {/* Check if the user is the offerer */}
-                {offerNFTs.some(
-                  (offerNFT) =>
-                    offerNFT.itemOwner?.toLowerCase() ===
-                    currentAccount?.address?.toLowerCase()
-                ) ? (
-                  <>
-                    <Button
-                      icon={<MdTimer />}
-                      btnName="Pending Offer"
-                      classStyle={Style.pending_button}
-                      disabled 
-                    />
-                    <Button
-                      icon={<MdCancel />}
-                      btnName="Cancel Offer"
-                      handleClick={() => {}}
-                      classStyle={Style.decline_button}
-                    />
-                  </>
-                ) : (
-                  <>
-                    {/* If the user is the listing owner */}
-                    <Button
-                      icon={<FaWallet />}
-                      btnName="Accept Offer"
-                      handleClick={() => {}}
-                      classStyle={Style.accept_button}
-                    />
-                    <Button
-                      icon={<MdCancel />}
-                      btnName="Reject Offer"
-                      handleClick={() => {}}
-                      classStyle={Style.decline_button}
-                    />
-                  </>
-                )}
               </div>
             </>
           )}
@@ -394,3 +486,4 @@ if (error) {
 };
 
 export default ViewOffer;
+
